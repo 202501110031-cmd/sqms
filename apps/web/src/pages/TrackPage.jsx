@@ -34,6 +34,7 @@ import {
 import { useLanguage, localDepartmentName } from '../context/LanguageContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../lib/api';
+import { getSavedTokens, saveToken } from '../lib/savedTokens';
 import { speak, unlockSpeech } from '../lib/voice';
 import { socket } from '../lib/socket';
 import { formatDate, formatTime, titleCase } from '../lib/format';
@@ -66,6 +67,7 @@ export default function TrackPage() {
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(() => localStorage.getItem('sqms_voice') !== 'off');
+  const [savedTokens, setSavedTokens] = useState(() => getSavedTokens());
   const lastSpokenRef = useRef(0);
 
   const load = async (silent = false) => {
@@ -73,6 +75,10 @@ export default function TrackPage() {
     if (!silent) setLoading(true);
     try {
       const result = await api(`/api/public/tickets/${encodeURIComponent(code)}`, { auth: false });
+      if (!silent) {
+        saveToken(result);
+        setSavedTokens(getSavedTokens());
+      }
       setData(result);
       setError('');
     } catch (requestError) {
@@ -136,6 +142,8 @@ export default function TrackPage() {
     setChecking(true);
     try {
       const result = await api(`/api/public/tickets/${encodeURIComponent(code)}/check-in`, { method: 'POST', auth: false });
+      saveToken(result);
+      setSavedTokens(getSavedTokens());
       setData(result);
       push('Check-in successful. You are in the live queue.');
       if (voiceEnabled) {
@@ -155,6 +163,8 @@ export default function TrackPage() {
     if (!window.confirm('Cancel this token? This cannot be undone.')) return;
     try {
       const result = await api(`/api/public/tickets/${encodeURIComponent(code)}/cancel`, { method: 'POST', auth: false });
+      saveToken(result);
+      setSavedTokens(getSavedTokens());
       setData(result);
       push('Token cancelled', 'info');
     } catch (requestError) {
@@ -221,6 +231,29 @@ export default function TrackPage() {
               <button className="btn btn-primary btn-wide">{t('track.submit')} <ArrowRight size={17} /></button>
             </form>
             {error && <div className="field-error">{error}</div>}
+            {savedTokens.length > 0 && (
+              <div className="track-saved-tokens">
+                <div className="track-saved-head">
+                  <div>
+                    <strong>{t('home.savedTitle')}</strong>
+                    <small>{t('home.savedBody')}</small>
+                  </div>
+                  <Ticket size={17} />
+                </div>
+                {savedTokens.slice(0, 5).map((token) => (
+                  <Link to={`/track/${token.code}`} className="track-saved-row" key={token.code}>
+                    <span>
+                      <strong>{token.tokenLabel}</strong>
+                      <small>{token.patientName} · {token.departmentName}</small>
+                    </span>
+                    <span className="track-saved-side">
+                      <StatusBadge status={token.status} label={t(`status.${token.status}`)} />
+                      <ArrowRight size={15} />
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
             <div className="track-help-grid">
               <div><Ticket size={17} /><span>Find the code on your token or SMS confirmation.</span></div>
               <div><Phone size={17} /><span>Reception can help on 020 4000 1200.</span></div>

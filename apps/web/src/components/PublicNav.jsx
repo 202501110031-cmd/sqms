@@ -10,7 +10,7 @@ export default function PublicNav() {
 
   const links = [
     { to: '/', label: t('nav.home'), end: true },
-    { to: '/#booking', label: t('nav.book') },
+    { to: '/book', label: t('nav.book') },
     { to: '/track', label: t('nav.track') },
     { to: '/display', label: t('nav.display') }
   ];
@@ -61,7 +61,7 @@ export function PublicFooter() {
         <div className="footer-links">
           <div>
             <strong>Patients</strong>
-            <Link to="/#booking">{t('nav.book')}</Link>
+            <Link to="/book">{t('nav.book')}</Link>
             <Link to="/track">{t('nav.track')}</Link>
             <Link to="/display">{t('nav.display')}</Link>
           </div>

@@ -42,7 +42,7 @@ The API serves the built React app and API from http://localhost:4000.
 npm run reset-db --workspace=@sqms/api
 ```
 
-This removes the current SQLite database and reseeds departments, doctors, staff accounts, today's live queues, and 45 days of historical analytics data.
+This removes the current SQLite database and reseeds departments, 10 doctors, and staff accounts only. No demo patients, bookings, or historical analytics records are preloaded, so every queue starts clean.
 
 ## Demo Accounts
 
@@ -54,7 +54,7 @@ This removes the current SQLite database and reseeds departments, doctors, staff
 | Nurse | `nurse@sqms.health` | `nurse123` |
 | Receptionist | `reception@sqms.health` | `reception123` |
 
-Patients do not need an account. They book or take a token and receive a tracking code such as `GEN-261029-006`, then track it at `/track/:code`.
+Patients do not need an account. They book or take a token and receive a token number such as `GEN-006` plus a full tracking code such as `GEN-261029-006`. Either value works on `/track`. Generated tokens are saved automatically in the browser on that device and can be reopened from the home page or `/track` without signing in.
 
 ## Features
 
@@ -106,8 +106,9 @@ Patients do not need an account. They book or take a token and receive a trackin
 
 | Route | Purpose |
 | --- | --- |
-| `/` | Patient booking and live departments |
-| `/track` | Token lookup |
+| `/` | Patient access hub and saved tokens |
+| `/book` | Patient booking and appointments |
+| `/track` | Token lookup and saved tokens |
 | `/track/:code` | Live token tracking |
 | `/display` | Full-screen public queue display |
 | `/staff/login` | Staff sign-in |

@@ -137,33 +137,6 @@ function makeTicketCode(deptCode, date, tokenNo) {
   return `${deptCode}-${compact}-${String(tokenNo).padStart(3, '0')}`;
 }
 
-function atDate(dayOffset, hour, minute) {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset, hour, minute, 0);
-}
-
-function insertAppointment(values) {
-  const now = localDateTime();
-  const result = db.prepare(`
-    INSERT INTO appointments (
-      ticket_code, token_no, patient_name, phone, age, gender, department_id, doctor_id,
-      appointment_date, slot_time, kind, priority, status, language, notes, source,
-      checkin_at, called_at, started_at, completed_at, skipped_at, cancelled_at,
-      created_by, created_at, updated_at, priority_updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    values.ticketCode, values.tokenNo, values.patientName, values.phone, values.age ?? null,
-    values.gender ?? null, values.departmentId, values.doctorId, values.appointmentDate,
-    values.slotTime ?? null, values.kind ?? 'appointment', values.priority ?? 'general',
-    values.status ?? 'booked', values.language ?? 'en', values.notes ?? null,
-    values.source ?? 'web', values.checkinAt ?? null, values.calledAt ?? null,
-    values.startedAt ?? null, values.completedAt ?? null, values.skippedAt ?? null,
-    values.cancelledAt ?? null, values.createdBy ?? null, values.createdAt ?? now,
-    values.updatedAt ?? now, values.priorityUpdatedAt ?? now
-  );
-  return Number(result.lastInsertRowid);
-}
-
 function seed() {
   const departmentCount = db.prepare('SELECT COUNT(*) AS count FROM departments').get().count;
   if (departmentCount > 0) return;
@@ -213,7 +186,12 @@ function seed() {
     { key: 'patil', dept: 'GEN', name: 'Dr. Rohan Patil', qualification: 'MBBS, MD (Medicine)', room: 'Room 101', avg: 10 },
     { key: 'joshi', dept: 'PED', name: 'Dr. Meera Joshi', qualification: 'MBBS, DCH', room: 'Room 108', avg: 12 },
     { key: 'kulkarni', dept: 'ORT', name: 'Dr. Sunil Kulkarni', qualification: 'MS (Orthopaedics)', room: 'Room 302', avg: 14 },
-    { key: 'pawar', dept: 'OBG', name: 'Dr. Kavita Pawar', qualification: 'MS (OBG)', room: 'Room 205', avg: 16 }
+    { key: 'pawar', dept: 'OBG', name: 'Dr. Kavita Pawar', qualification: 'MS (OBG)', room: 'Room 205', avg: 16 },
+    { key: 'sneha', dept: 'GEN', name: 'Dr. Sneha Kulkarni', qualification: 'MBBS, MD (Medicine)', room: 'Room 102', avg: 11 },
+    { key: 'rao', dept: 'CAR', name: 'Dr. Arvind Rao', qualification: 'MD, DM (Cardiology)', room: 'Room 206', avg: 14 },
+    { key: 'nikhil', dept: 'PED', name: 'Dr. Nikhil Deshpande', qualification: 'MBBS, DCH', room: 'Room 109', avg: 12 },
+    { key: 'naik', dept: 'OBG', name: 'Dr. Shalini Naik', qualification: 'MS (OBG)', room: 'Room 207', avg: 15 },
+    { key: 'ajay', dept: 'ORT', name: 'Dr. Ajay Chavan', qualification: 'MS (Orthopaedics)', room: 'Room 304', avg: 13 }
   ];
 
   const insertDoctor = db.prepare(`
@@ -259,191 +237,6 @@ function seed() {
     );
   }
 
-  const tokenCounters = {};
-  const nextToken = (deptId, date) => {
-    const key = `${deptId}:${date}`;
-    tokenCounters[key] = (tokenCounters[key] || 0) + 1;
-    return tokenCounters[key];
-  };
-
-  const today = localDate();
-  const addDemo = (config) => {
-    const tokenNo = nextToken(config.dept, config.date || today);
-    const dept = departments.find((item) => item.code === config.dept);
-    return insertAppointment({
-      ticketCode: makeTicketCode(config.dept, config.date || today, tokenNo),
-      tokenNo,
-      patientName: config.name,
-      phone: config.phone,
-      age: config.age,
-      gender: config.gender,
-      departmentId: deptIds[config.dept],
-      doctorId: doctorIds[config.doctor],
-      appointmentDate: config.date || today,
-      slotTime: config.slot,
-      kind: config.kind || 'appointment',
-      priority: config.priority || 'general',
-      status: config.status,
-      language: config.language || 'en',
-      notes: config.notes,
-      source: config.source || 'web',
-      checkinAt: config.checkinAt,
-      calledAt: config.calledAt,
-      startedAt: config.startedAt,
-      completedAt: config.completedAt,
-      createdAt: config.createdAt
-    });
-  };
-
-  const minutesAgo = (minutes) => localDateTime(new Date(Date.now() - minutes * 60 * 1000));
-  const hoursAgo = (hours) => localDateTime(new Date(Date.now() - hours * 60 * 60 * 1000));
-
-  addDemo({
-    dept: 'CAR', doctor: 'deshmukh', name: 'Nitin Sawant', phone: '9822014301', age: 58, gender: 'male',
-    priority: 'senior', status: 'called', slot: '10:15', kind: 'appointment', language: 'mr',
-    checkinAt: minutesAgo(34), calledAt: minutesAgo(3), createdAt: hoursAgo(2), notes: 'Chest discomfort follow-up'
-  });
-  addDemo({
-    dept: 'CAR', doctor: 'deshmukh', name: 'Aarti Shinde', phone: '9822014302', age: 45, gender: 'female',
-    priority: 'general', status: 'waiting', slot: '10:30', kind: 'appointment',
-    checkinAt: minutesAgo(27), createdAt: hoursAgo(2), language: 'mr'
-  });
-  addDemo({
-    dept: 'CAR', doctor: 'deshmukh', name: 'Vikram Rao', phone: '9822014303', age: 62, gender: 'male',
-    priority: 'disabled', status: 'waiting', slot: '10:45', kind: 'walkin',
-    checkinAt: minutesAgo(19), createdAt: minutesAgo(21), language: 'en'
-  });
-
-  addDemo({
-    dept: 'GEN', doctor: 'patil', name: 'Ramesh Jadhav', phone: '9822014401', age: 67, gender: 'male',
-    priority: 'senior', status: 'waiting', slot: '10:40', kind: 'walkin',
-    checkinAt: minutesAgo(32), createdAt: minutesAgo(35), language: 'mr'
-  });
-  addDemo({
-    dept: 'GEN', doctor: 'patil', name: 'Sana Shaikh', phone: '9822014402', age: 29, gender: 'female',
-    priority: 'pregnant', status: 'waiting', slot: '10:50', kind: 'appointment',
-    checkinAt: minutesAgo(21), createdAt: hoursAgo(1), language: 'hi'
-  });
-  addDemo({
-    dept: 'GEN', doctor: 'patil', name: 'Arjun Kale', phone: '9822014403', age: 31, gender: 'male',
-    priority: 'general', status: 'waiting', slot: '11:00', kind: 'appointment',
-    checkinAt: minutesAgo(12), createdAt: hoursAgo(1), language: 'en'
-  });
-  addDemo({
-    dept: 'GEN', doctor: 'patil', name: 'Neha Bhosale', phone: '9822014404', age: 39, gender: 'female',
-    priority: 'emergency', status: 'waiting', slot: '11:05', kind: 'walkin',
-    checkinAt: minutesAgo(5), createdAt: minutesAgo(6), language: 'en',
-    notes: 'High fever and breathlessness — triage priority'
-  });
-
-  addDemo({
-    dept: 'PED', doctor: 'joshi', name: 'Ira Kulkarni', phone: '9822014501', age: 4, gender: 'female',
-    priority: 'general', status: 'waiting', slot: '10:30', kind: 'appointment',
-    checkinAt: minutesAgo(16), createdAt: hoursAgo(2), language: 'mr'
-  });
-  addDemo({
-    dept: 'PED', doctor: 'joshi', name: 'Kabir Joshi', phone: '9822014502', age: 7, gender: 'male',
-    priority: 'general', status: 'waiting', slot: '10:45', kind: 'walkin',
-    checkinAt: minutesAgo(9), createdAt: minutesAgo(11), language: 'en'
-  });
-
-  addDemo({
-    dept: 'OBG', doctor: 'pawar', name: 'Pooja Pawar', phone: '9822014601', age: 27, gender: 'female',
-    priority: 'pregnant', status: 'waiting', slot: '10:40', kind: 'appointment',
-    checkinAt: minutesAgo(24), createdAt: hoursAgo(2), language: 'mr'
-  });
-  addDemo({
-    dept: 'OBG', doctor: 'pawar', name: 'Sneha Kadam', phone: '9822014602', age: 32, gender: 'female',
-    priority: 'general', status: 'waiting', slot: '11:00', kind: 'appointment',
-    checkinAt: minutesAgo(8), createdAt: hoursAgo(1), language: 'hi'
-  });
-
-  addDemo({
-    dept: 'ORT', doctor: 'kulkarni', name: 'Mohan Patil', phone: '9822014701', age: 71, gender: 'male',
-    priority: 'senior', status: 'waiting', slot: '10:20', kind: 'walkin',
-    checkinAt: minutesAgo(28), createdAt: minutesAgo(30), language: 'mr'
-  });
-
-  addDemo({
-    dept: 'GEN', doctor: 'patil', name: 'Suresh Gaikwad', phone: '9822014801', age: 46, gender: 'male',
-    priority: 'general', status: 'booked', slot: '11:30', kind: 'appointment',
-    createdAt: hoursAgo(3), language: 'en'
-  });
-  addDemo({
-    dept: 'CAR', doctor: 'deshmukh', name: 'Asha Mehta', phone: '9822014802', age: 54, gender: 'female',
-    priority: 'general', status: 'booked', slot: '11:45', kind: 'appointment',
-    createdAt: hoursAgo(5), language: 'en'
-  });
-
-  const tomorrow = localDate(atDate(1, 10, 0));
-  addDemo({
-    dept: 'GEN', doctor: 'patil', name: 'Rahul Chavan', phone: '9822014901', age: 35, gender: 'male',
-    priority: 'general', status: 'booked', slot: '10:00', kind: 'appointment',
-    date: tomorrow, createdAt: now, language: 'mr'
-  });
-  addDemo({
-    dept: 'CAR', doctor: 'deshmukh', name: 'Leena Shah', phone: '9822014902', age: 60, gender: 'female',
-    priority: 'senior', status: 'booked', slot: '10:15', kind: 'appointment',
-    date: tomorrow, createdAt: now, language: 'en'
-  });
-
-  db.prepare(`
-    INSERT INTO audit_log (actor_role, action, details, created_at)
-    VALUES ('system', 'seed', 'Demo hospital data generated', ?)
-  `).run(now);
-
-  const demoPatients = [
-    ['Rahul Chavan', '9822014901', 'male'], ['Leena Shah', '9822014902', 'female'],
-    ['Amit More', '9822014903', 'male'], ['Priyanka Jagtap', '9822014904', 'female'],
-    ['Ravi Salunkhe', '9822014905', 'male'], ['Manisha Kamble', '9822014906', 'female'],
-    ['Sagar Pawar', '9822014907', 'male'], ['Anita Vaidya', '9822014908', 'female'],
-    ['Nilesh Patil', '9822014909', 'male'], ['Komal Sutar', '9822014910', 'female']
-  ];
-  const priorities = ['general', 'general', 'senior', 'pregnant', 'disabled', 'emergency', 'general'];
-  const deptCodes = ['GEN', 'CAR', 'PED', 'OBG', 'ORT'];
-
-  for (let dayOffset = -1; dayOffset >= -45; dayOffset -= 1) {
-    const date = localDate(atDate(dayOffset, 10, 0));
-    const count = 4 + Math.abs((dayOffset * 7) % 5);
-    for (let index = 0; index < count; index += 1) {
-      const dept = deptCodes[(Math.abs(dayOffset) + index) % deptCodes.length];
-      const doctorKey = dept === 'GEN' ? 'patil' : dept === 'CAR' ? 'deshmukh' : dept === 'PED' ? 'joshi' : dept === 'OBG' ? 'pawar' : 'kulkarni';
-      const patient = demoPatients[(Math.abs(dayOffset) * 3 + index) % demoPatients.length];
-      const tokenNo = nextToken(deptIds[dept], date);
-      const base = atDate(dayOffset, 9 + ((index * 2 + Math.abs(dayOffset)) % 8), (index * 7) % 60);
-      const checkin = localDateTime(base);
-      const called = localDateTime(new Date(base.getTime() + (5 + (index * 3) % 24) * 60000));
-      const started = localDateTime(new Date(base.getTime() + (8 + (index * 3) % 25) * 60000));
-      const completed = localDateTime(new Date(base.getTime() + (18 + (index * 4) % 22) * 60000));
-      const isServed = index % 7 !== 0;
-      insertAppointment({
-        ticketCode: makeTicketCode(dept, date, tokenNo),
-        tokenNo,
-        patientName: patient[0],
-        phone: patient[1],
-        age: 22 + ((Math.abs(dayOffset) * 5 + index * 11) % 58),
-        gender: patient[2],
-        departmentId: deptIds[dept],
-        doctorId: doctorIds[doctorKey],
-        appointmentDate: date,
-        slotTime: `${String(9 + ((index * 2) % 8)).padStart(2, '0')}:${String((index * 10) % 60).padStart(2, '0')}`,
-        kind: index % 3 === 0 ? 'walkin' : 'appointment',
-        priority: priorities[(Math.abs(dayOffset) + index) % priorities.length],
-        status: isServed ? 'served' : index % 7 === 1 ? 'skipped' : index % 7 === 2 ? 'cancelled' : 'no_show',
-        language: index % 3 === 0 ? 'mr' : index % 3 === 1 ? 'hi' : 'en',
-        source: index % 2 === 0 ? 'reception' : 'web',
-        checkinAt: lenientIso(isServed || index % 7 > 0, checkin),
-        calledAt: isServed ? called : null,
-        startedAt: isServed ? started : null,
-        completedAt: isServed ? completed : null,
-        createdAt: localDateTime(new Date(base.getTime() - 50 * 60000))
-      });
-    }
-  }
-}
-
-function lenientIso(condition, value) {
-  return condition ? value : null;
 }
 
 seed();

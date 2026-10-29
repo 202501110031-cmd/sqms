@@ -6,6 +6,7 @@ import { ToastProvider } from './context/ToastContext';
 import StaffLayout from './components/StaffLayout';
 import { LoadingBlock } from './components/UI';
 import HomePage from './pages/HomePage';
+import BookPage from './pages/BookPage';
 import TrackPage from './pages/TrackPage';
 import DisplayPage from './pages/DisplayPage';
 import LoginPage from './pages/LoginPage';
@@ -68,6 +69,7 @@ export default function App() {
             <ScrollToTop />
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/book" element={<BookPage />} />
               <Route path="/track" element={<TrackPage />} />
               <Route path="/track/:code" element={<TrackPage />} />
               <Route path="/display" element={<DisplayPage />} />

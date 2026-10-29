@@ -342,14 +342,34 @@ app.post('/api/public/bookings', asyncRoute(async (req, res) => {
   }
 }));
 
+function findPublicAppointment(codeInput) {
+  const code = String(codeInput || '').replace(/\s+/g, '').toUpperCase();
+  if (!code) return null;
+
+  const exact = db.prepare('SELECT * FROM appointments WHERE UPPER(ticket_code) = ?').get(code);
+  if (exact) return exact;
+
+  const shortCode = code.match(/^([A-Z]{2,5})-?(\d{1,4})$/);
+  if (!shortCode) return null;
+
+  return db.prepare(`
+    SELECT a.*
+    FROM appointments a
+    JOIN departments d ON d.id = a.department_id
+    WHERE UPPER(d.code) = ? AND a.token_no = ? AND a.appointment_date = ?
+    ORDER BY a.id DESC
+    LIMIT 1
+  `).get(shortCode[1], Number(shortCode[2]), localDate()) || null;
+}
+
 app.get('/api/public/tickets/:code', (req, res) => {
-  const ticket = getTicketStatus(req.params.code);
-  if (!ticket) return fail(res, 404, 'Ticket not found. Check the code and try again.');
-  res.json(ticket);
+  const appointment = findPublicAppointment(req.params.code);
+  if (!appointment) return fail(res, 404, 'Ticket not found. Check the code and try again.');
+  res.json(getTicketStatus(appointment.ticket_code));
 });
 
 app.post('/api/public/tickets/:code/check-in', asyncRoute(async (req, res) => {
-  const appointment = db.prepare('SELECT * FROM appointments WHERE UPPER(ticket_code) = UPPER(?)').get(req.params.code);
+  const appointment = findPublicAppointment(req.params.code);
   if (!appointment) return fail(res, 404, 'Ticket not found');
   try {
     await checkInAppointment(appointment, null, 'patient-self');
@@ -360,7 +380,7 @@ app.post('/api/public/tickets/:code/check-in', asyncRoute(async (req, res) => {
 }));
 
 app.post('/api/public/tickets/:code/cancel', asyncRoute(async (req, res) => {
-  const appointment = db.prepare('SELECT * FROM appointments WHERE UPPER(ticket_code) = UPPER(?)').get(req.params.code);
+  const appointment = findPublicAppointment(req.params.code);
   if (!appointment) return fail(res, 404, 'Ticket not found');
   if (!['booked', 'waiting'].includes(appointment.status)) return fail(res, 409, 'This ticket can no longer be cancelled');
   const now = localDateTime();
